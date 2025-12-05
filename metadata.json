@@ -1,7 +1,5 @@
 {
   "name": "Trunk & Soul Driver Check-in",
   "description": "Shuttle driver check-in and reward tracking system for Trunk & Soul Elephant Home.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

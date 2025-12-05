@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from './components/Layout';
 import DriverCard from './components/DriverCard';
-import Scanner from './components/Scanner';
 import { AppView, Driver } from './types';
 import { getDriverById, addCheckIn, createDriver, getAllDrivers } from './services/storage';
 import { generateWelcomeMessage } from './services/gemini';
@@ -23,7 +22,6 @@ const getVehicleIcon = (type?: 'taxi' | 'van') => {
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.HOME);
   const [currentDriver, setCurrentDriver] = useState<Driver | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState<string>('');
   
@@ -117,21 +115,40 @@ const App: React.FC = () => {
     setNewPlate('');
   };
 
-  const onScan = (decodedText: string) => {
-    setShowScanner(false);
-    const driver = getDriverById(decodedText);
+  const handleExportCSV = () => {
+    const drivers = getAllDrivers();
+    // Create CSV Rows
+    const rows = [
+      ['ID', 'Name', 'License Plate', 'Vehicle Type', 'Total Trips', 'Last Check-In']
+    ];
     
-    if (driver) {
-        if (view === AppView.CHECK_IN || view === AppView.CONFIRM_CHECK_IN) {
-            initiateCheckIn(driver);
-        } else {
-            // Admin or Home lookup
-            setCurrentDriver(driver);
-            setView(AppView.STATUS);
-        }
-    } else {
-        alert(`ID ${decodedText} not found in system.`);
-    }
+    drivers.forEach(d => {
+        rows.push([
+            d.id,
+            `"${d.name}"`, // Quote strings to handle potential commas
+            `"${d.licensePlate}"`,
+            d.vehicleType || 'van',
+            d.totalCheckIns.toString(),
+            d.lastCheckIn
+        ]);
+    });
+
+    // Join with commas and newlines
+    // Add BOM for Excel compatibility with Thai characters
+    const csvContent = "\uFEFF" + rows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `trunk_soul_drivers_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Views Configuration
@@ -152,7 +169,7 @@ const App: React.FC = () => {
           onClick={() => setView(AppView.ADMIN)}
           className="w-full py-4 bg-white border-2 border-blue-900 text-blue-900 rounded-xl hover:bg-blue-50 transition-all font-semibold text-lg flex items-center justify-center gap-2"
         >
-          <span>🔍</span> Check Status (Driver)
+          <span>🔍</span> Check Status / Admin
         </button>
       </div>
 
@@ -166,9 +183,6 @@ const App: React.FC = () => {
     <div className="space-y-6" onClick={() => setShowDropdown(false)}>
        <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-blue-900">Staff Check-In</h2>
-          <button onClick={() => setShowScanner(true)} className="text-sm bg-blue-900 text-white px-3 py-1 rounded-lg flex items-center gap-1">
-             📷 Scan QR
-          </button>
        </div>
 
        {/* Smart Search Input */}
@@ -246,7 +260,7 @@ const App: React.FC = () => {
             onClick={handleRegister}
             className="w-full bg-blue-900 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-900/20"
           >
-            Create & Generate QR
+            Create Driver
           </button>
        </div>
     </div>
@@ -359,7 +373,7 @@ const App: React.FC = () => {
             </div>
         )}
 
-        <DriverCard driver={currentDriver} showQr={true} />
+        <DriverCard driver={currentDriver} />
         
         <div className="bg-sky-50 p-4 rounded-xl border border-sky-100">
             <h4 className="font-bold text-sky-800 mb-2">Check-in History</h4>
@@ -381,8 +395,11 @@ const App: React.FC = () => {
       <div className="space-y-6" onClick={() => setShowDropdown(false)}>
            <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-blue-900">Driver Lookup</h2>
-              <button onClick={() => setShowScanner(true)} className="text-sm bg-blue-900 text-white px-3 py-1 rounded-lg flex items-center gap-1">
-                 📷 Scan QR
+              <button 
+                onClick={handleExportCSV} 
+                className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition-colors"
+              >
+                 📄 Export CSV
               </button>
            </div>
            
@@ -456,8 +473,6 @@ const App: React.FC = () => {
 
   return (
     <Layout currentView={view} setView={setView}>
-      {showScanner && <Scanner onScan={onScan} onClose={() => setShowScanner(false)} />}
-      
       {view === AppView.HOME && renderHome()}
       {view === AppView.CHECK_IN && renderCheckIn()}
       {view === AppView.CONFIRM_CHECK_IN && renderConfirmCheckIn()}

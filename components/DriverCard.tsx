@@ -1,14 +1,12 @@
 import React from 'react';
 import { Driver } from '../types';
 import { calculateReward } from '../services/storage';
-import QRCode from "react-qr-code";
 
 interface DriverCardProps {
   driver: Driver;
-  showQr?: boolean;
 }
 
-const DriverCard: React.FC<DriverCardProps> = ({ driver, showQr = false }) => {
+const DriverCard: React.FC<DriverCardProps> = ({ driver }) => {
   const { progress, rewardsEarned, remaining } = calculateReward(driver.totalCheckIns);
   const percentage = (progress / 10) * 100;
 
@@ -52,22 +50,6 @@ const DriverCard: React.FC<DriverCardProps> = ({ driver, showQr = false }) => {
                 }
             </p>
         </div>
-
-        {/* QR Code Section */}
-        {showQr && (
-            <div className="flex flex-col items-center pt-4 border-t border-slate-100">
-                <p className="text-xs text-slate-400 mb-2">Driver ID: {driver.id}</p>
-                <div className="p-2 bg-white border-2 border-dashed border-sky-200 rounded-lg">
-                    <QRCode 
-                        value={driver.id} 
-                        size={120} 
-                        level="H" 
-                        fgColor="#0f172a"
-                    />
-                </div>
-                <p className="text-xs text-slate-400 mt-2">Scan to check status</p>
-            </div>
-        )}
       </div>
     </div>
   );
